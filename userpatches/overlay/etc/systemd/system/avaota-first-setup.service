@@ -1,0 +1,16 @@
+[Unit]
+Description=Avaota A1 First Boot Setup (Home Assistant + OpenClaw)
+After=network-online.target docker.service
+Wants=network-online.target docker.service
+ConditionPathExists=!/var/lib/avaota-first-setup-done
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/avaota-first-setup.sh
+ExecStartPost=/usr/bin/touch /var/lib/avaota-first-setup-done
+TimeoutStartSec=600
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target
