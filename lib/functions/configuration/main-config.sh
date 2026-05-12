@@ -65,6 +65,9 @@ function do_main_configuration() {
 	# Armbian config is central tool used in all builds. As its build externally, we have moved it to extension. Enable it here.
 	enable_extension "armbian-config"
 
+	# Fix binman pkg_resources removal in setuptools >= 82. Can be removed when all U-Boot versions are >= v2025.10.
+	enable_extension "uboot-binman-fix-pkg-resources"
+
 	# Network stack to use, default to network-manager; configuration can override this.
 	# Will be made read-only further down.
 	declare -g NETWORKING_STACK="${NETWORKING_STACK}"
@@ -160,8 +163,11 @@ function do_main_configuration() {
 			;;
 	esac
 
-	# Check if the filesystem type is supported by the build host
-	if [[ $CONFIG_DEFS_ONLY != yes ]]; then # don't waste time if only gathering config defs
+	# Check if the filesystem type is supported by the build host.
+	# Skipped for nfs / nfs-root: these rootfs types produce a tarball on the
+	# host (rootfs-to-image.sh `tar | gzip`) and never mount NFS locally — the
+	# target's kernel mounts it at boot time, so host FS support is irrelevant.
+	if [[ $CONFIG_DEFS_ONLY != yes && $ROOTFS_TYPE != nfs && $ROOTFS_TYPE != nfs-root ]]; then # don't waste time if only gathering config defs
 		check_filesystem_compatibility_on_host
 	fi
 
@@ -515,7 +521,7 @@ function write_config_summary_output_file() {
 		Minimal: $BUILD_MINIMAL
 		Desktop: $BUILD_DESKTOP
 		Desktop Environment: $DESKTOP_ENVIRONMENT
-		Software groups: $DESKTOP_APPGROUPS_SELECTED
+		Desktop Tier: $DESKTOP_TIER
 
 		Kernel configuration:
 		Repository: $KERNELSOURCE

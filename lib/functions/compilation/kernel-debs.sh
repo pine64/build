@@ -265,6 +265,7 @@ function kernel_package_callback_linux_image() {
 		Maintainer: ${MAINTAINER} <${MAINTAINERMAIL}>
 		Section: kernel
 		Priority: optional
+		Depends: initramfs-tools | linux-initramfs-tool
 		Provides: linux-image, linux-image-armbian, armbian-$BRANCH, wireguard-modules
 		Description: Armbian Linux $BRANCH kernel image $kernel_version_family
 		 This package contains the Linux kernel, modules and corresponding other files.
@@ -517,7 +518,7 @@ function kernel_package_callback_linux_headers() {
 		Package: ${package_name}
 		Architecture: ${ARCH}
 		Priority: optional
-		Provides: linux-headers, linux-headers-armbian, armbian-$BRANCH
+		Provides: linux-headers (= ${kernel_version}), linux-headers-armbian, armbian-$BRANCH
 		Depends: make, gcc, libc6-dev, bison, flex, libssl-dev, libelf-dev, pahole
 		Description: Armbian Linux $BRANCH headers ${kernel_version_family}
 		 This package provides kernel header files for ${kernel_version_family}
