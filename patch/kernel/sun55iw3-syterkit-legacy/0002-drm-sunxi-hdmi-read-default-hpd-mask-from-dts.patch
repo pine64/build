@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Frank Li <frankli@users.noreply.github.com>
+Date: Thu, 4 Jun 2026 04:10:00 +0000
+Subject: [PATCH] drm: sunxi-hdmi: read default HPD mask from DTS
+
+The DRM HDMI driver exposes a runtime hpd_mask sysfs knob, but it does
+not read the matching DTS property during initialization. Allow board
+DTS files to set the same default value when a board needs a stable HPD
+policy at boot.
+
+---
+ bsp/drivers/drm/sunxi_drm_hdmi.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/bsp/drivers/drm/sunxi_drm_hdmi.c b/bsp/drivers/drm/sunxi_drm_hdmi.c
+index 111111111111..222222222222 100644
+--- a/bsp/drivers/drm/sunxi_drm_hdmi.c
++++ b/bsp/drivers/drm/sunxi_drm_hdmi.c
+@@ -2961,6 +2961,9 @@ static int __sunxi_hdmi_init_dts(struct sunxi_drm_hdmi *hdmi)
+ 	ret = of_property_read_u32(node, "hdmi_ddc_index", &value);
+ 	hdmi->hdmi_ctrl.drv_dts_ddc_index = (ret != 0x0) ? 0x1F : value;
+ 
++	ret = of_property_read_u32(node, "hdmi_hpd_mask", &value);
++	hdmi->hdmi_ctrl.drv_hpd_mask = (ret != 0x0) ? 0x0 : value;
++
+ 	/* parse tcon clock */
+ 	pclk->clk_tcon_tv = devm_clk_get(dev, "clk_tcon_tv");
+ 	if (IS_ERR_OR_NULL(pclk->clk_tcon_tv))
+-- 
+2.43.0

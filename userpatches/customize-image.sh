@@ -17,6 +17,15 @@ LINUXFAMILY=$2
 BOARD=$3
 BUILD_DESKTOP=$4
 
+AptUpdate() {
+	apt-get \
+		-o Acquire::ForceIPv4=true \
+		-o Acquire::Retries=3 \
+		-o Acquire::http::Timeout=30 \
+		-o Acquire::https::Timeout=30 \
+		update
+} # AptUpdate
+
 Main() {
 	case $RELEASE in
 		noble)
@@ -51,7 +60,7 @@ InstallAvaotaA1Stack() {
 	export DEBIAN_FRONTEND=noninteractive
 
 	echo ">>> [avaota] Installing base packages..."
-	apt-get update
+	AptUpdate
 	apt-get install -y --no-install-recommends \
 		curl wget git ca-certificates gnupg \
 		build-essential python3 make g++ \
@@ -69,7 +78,7 @@ InstallAvaotaA1Stack() {
 		| gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
 	echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" \
 		> /etc/apt/sources.list.d/nodesource.list
-	apt-get update
+	AptUpdate
 	apt-get install -y nodejs
 
 	# -- pnpm (for Zigbee2MQTT BLZ build if needed later) --
@@ -85,7 +94,8 @@ InstallAvaotaA1Stack() {
 	cp /tmp/overlay/usr/local/bin/avaota-first-setup.sh /usr/local/bin/
 	chmod 755 /usr/local/bin/avaota-first-setup.sh
 	cp /tmp/overlay/etc/systemd/system/avaota-first-setup.service /etc/systemd/system/
-	systemctl enable avaota-first-setup.service
+	cp /tmp/overlay/etc/systemd/system/avaota-first-setup.timer /etc/systemd/system/
+	systemctl enable avaota-first-setup.timer
 
 	# -- Clean up --
 	echo ">>> [avaota] Cleaning up..."

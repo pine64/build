@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Frank Li <frankli@users.noreply.github.com>
+Date: Thu, 4 Jun 2026 03:05:00 +0000
+Subject: [PATCH] drm: sunxi-hdmi: release DDC I2C master from reset
+
+The HDMI DDC controller never reports DONE or ERROR when the I2C master
+is held in reset, so EDID reads time out with "dw i2cm wait state
+timeout". Release the DDC I2C master before programming the bus speed.
+
+---
+ bsp/drivers/drm/sunxi_device/hardware/lowlevel_hdmi20/dw_i2cm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/bsp/drivers/drm/sunxi_device/hardware/lowlevel_hdmi20/dw_i2cm.c b/bsp/drivers/drm/sunxi_device/hardware/lowlevel_hdmi20/dw_i2cm.c
+index 111111111111..222222222222 100644
+--- a/bsp/drivers/drm/sunxi_device/hardware/lowlevel_hdmi20/dw_i2cm.c
++++ b/bsp/drivers/drm/sunxi_device/hardware/lowlevel_hdmi20/dw_i2cm.c
+@@ -238,7 +238,7 @@ int dw_i2cm_re_init(void)
+ {
+ 	struct dw_i2cm_s *i2cm = dw_get_i2cm();
+ 
+-	dw_write_mask(I2CM_SOFTRSTZ, I2CM_SOFTRSTZ_I2C_SOFTRSTZ_MASK, 0x0);
++	dw_write_mask(I2CM_SOFTRSTZ, I2CM_SOFTRSTZ_I2C_SOFTRSTZ_MASK, 0x1);
+ 
+ 	dw_write_mask(I2CM_DIV, I2CM_DIV_FAST_STD_MODE_MASK, i2cm->mode);
+ 
+-- 
+2.43.0

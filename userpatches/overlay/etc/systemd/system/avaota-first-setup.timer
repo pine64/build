@@ -1,0 +1,13 @@
+[Unit]
+Description=Schedule Avaota A1 First Boot Setup
+ConditionPathExists=!/var/lib/avaota-first-setup-done
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=5min
+AccuracySec=30s
+Persistent=true
+Unit=avaota-first-setup.service
+
+[Install]
+WantedBy=timers.target

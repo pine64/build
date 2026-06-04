@@ -33,20 +33,27 @@ setup_homeassistant() {
     log "Pulling latest Home Assistant Docker image..."
     docker pull ghcr.io/home-assistant/home-assistant:stable
 
-    log "Creating Home Assistant container..."
     mkdir -p /opt/homeassistant/config
-    docker create \
-        --name homeassistant \
-        --restart unless-stopped \
-        --network host \
-        --privileged \
-        -e TZ="$(cat /etc/timezone 2>/dev/null || echo UTC)" \
-        -v /opt/homeassistant/config:/config \
-        -v /run/dbus:/run/dbus:ro \
-        ghcr.io/home-assistant/home-assistant:stable
+
+    if docker container inspect homeassistant >/dev/null 2>&1; then
+        log "Home Assistant container already exists"
+    else
+        log "Creating Home Assistant container..."
+        docker create \
+            --name homeassistant \
+            --restart unless-stopped \
+            --network host \
+            --privileged \
+            -e TZ="$(cat /etc/timezone 2>/dev/null || echo UTC)" \
+            -v /opt/homeassistant/config:/config \
+            -v /run/dbus:/run/dbus:ro \
+            ghcr.io/home-assistant/home-assistant:stable
+    fi
 
     log "Starting Home Assistant..."
-    docker start homeassistant
+    if [ "$(docker inspect -f '{{.State.Running}}' homeassistant 2>/dev/null || echo false)" != "true" ]; then
+        docker start homeassistant
+    fi
 
     log "Home Assistant is running at http://localhost:8123"
 }
@@ -60,6 +67,7 @@ setup_zha_blz() {
     local tmp_dir
     tmp_dir="$(mktemp -d)"
     git clone --depth 1 https://github.com/fangzheli/haos_custom_zha_blz.git "${tmp_dir}"
+    rm -rf "${ha_config}/custom_components/zha"
     cp -r "${tmp_dir}/custom_components/zha" "${ha_config}/custom_components/"
     rm -rf "${tmp_dir}"
 

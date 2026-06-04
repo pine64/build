@@ -8,9 +8,6 @@ ConditionPathExists=!/var/lib/avaota-first-setup-done
 Type=oneshot
 ExecStart=/usr/local/bin/avaota-first-setup.sh
 ExecStartPost=/usr/bin/touch /var/lib/avaota-first-setup-done
-TimeoutStartSec=600
+TimeoutStartSec=900
 StandardOutput=journal+console
 StandardError=journal+console
-
-[Install]
-WantedBy=multi-user.target
