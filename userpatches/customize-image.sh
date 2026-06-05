@@ -54,7 +54,7 @@ InstallAvaotaA1Stack() {
 	# ----------------------------------------------------------------
 	# Avaota A1 BLZ Smart Home Stack
 	# Installs: Docker, Node.js 22, pnpm, build tools, first-boot service
-	# First-boot pulls: Home Assistant (Docker), OpenClaw (npm)
+	# First-boot pulls: Home Assistant (Docker) plus the selected assistant stack
 	# ----------------------------------------------------------------
 
 	export DEBIAN_FRONTEND=noninteractive
@@ -89,8 +89,11 @@ InstallAvaotaA1Stack() {
 	echo ">>> [avaota] Configuring USB serial module auto-load..."
 	cp /tmp/overlay/etc/modules-load.d/usb-serial-blz.conf /etc/modules-load.d/
 
-	# -- First-boot setup service (pulls HA + OpenClaw on first boot) --
+	# -- First-boot setup service (pulls HA + selected assistant on first boot) --
 	echo ">>> [avaota] Installing first-boot setup service..."
+	mkdir -p /usr/local/lib
+	cp /tmp/overlay/usr/local/lib/avaota-blz-zha.sh /usr/local/lib/
+	chmod 755 /usr/local/lib/avaota-blz-zha.sh
 	cp /tmp/overlay/usr/local/bin/avaota-first-setup.sh /usr/local/bin/
 	chmod 755 /usr/local/bin/avaota-first-setup.sh
 	cp /tmp/overlay/etc/systemd/system/avaota-first-setup.service /etc/systemd/system/
@@ -103,7 +106,7 @@ InstallAvaotaA1Stack() {
 	rm -rf /var/lib/apt/lists/*
 
 	echo ">>> [avaota] Avaota A1 stack installation complete."
-	echo ">>> [avaota] On first boot with network, Home Assistant + OpenClaw will be pulled."
+	echo ">>> [avaota] On first boot with network, Home Assistant + selected assistant stack will be pulled."
 } # InstallAvaotaA1Stack
 
 InstallOpenMediaVault() {

@@ -1,0 +1,164 @@
+#!/bin/bash
+#
+# Avaota A1 First Boot Setup
+# Runs once on first boot to pull latest Home Assistant and PicoClaw.
+# Managed by avaota-first-setup.service (ConditionPathExists guard).
+#
+
+set -euo pipefail
+
+LOG_TAG="avaota-first-setup"
+
+log() {
+    echo "[${LOG_TAG}] $*"
+    logger -t "${LOG_TAG}" "$*"
+}
+
+# shellcheck disable=SC1091
+. /usr/local/lib/avaota-blz-zha.sh
+
+wait_for_network() {
+    local retries=30
+    while [ $retries -gt 0 ]; do
+        if ping -c1 -W2 8.8.8.8 >/dev/null 2>&1; then
+            log "Network is up"
+            return 0
+        fi
+        log "Waiting for network... (${retries} retries left)"
+        sleep 5
+        retries=$((retries - 1))
+    done
+    log "ERROR: Network not available after 150s"
+    return 1
+}
+
+setup_homeassistant() {
+    log "Pulling latest Home Assistant Docker image..."
+    docker pull ghcr.io/home-assistant/home-assistant:stable
+
+    mkdir -p /opt/homeassistant/config
+
+    if docker container inspect homeassistant >/dev/null 2>&1; then
+        log "Home Assistant container already exists"
+    else
+        log "Creating Home Assistant container..."
+        docker create \
+            --name homeassistant \
+            --restart unless-stopped \
+            --network host \
+            --privileged \
+            -e TZ="$(cat /etc/timezone 2>/dev/null || echo UTC)" \
+            -v /opt/homeassistant/config:/config \
+            -v /run/dbus:/run/dbus:ro \
+            ghcr.io/home-assistant/home-assistant:stable
+    fi
+
+    log "Starting Home Assistant..."
+    if [ "$(docker inspect -f '{{.State.Running}}' homeassistant 2>/dev/null || echo false)" != "true" ]; then
+        docker start homeassistant
+    fi
+
+    log "Home Assistant is running at http://localhost:8123"
+}
+
+setup_picoclaw() {
+    log "Installing latest PicoClaw..."
+    local ARCH
+    ARCH=$(dpkg --print-architecture)
+    case "${ARCH}" in
+        arm64|aarch64) ARCH="aarch64" ;;
+        armhf)         ARCH="armv7" ;;
+        amd64)         ARCH="x86_64" ;;
+    esac
+
+    local DEB_URL
+    DEB_URL=$(curl -sf "https://api.github.com/repos/sipeed/picoclaw/releases/latest" \
+        | python3 -c "import sys,json; assets=json.load(sys.stdin)['assets']; print([a['browser_download_url'] for a in assets if a['name'].endswith('${ARCH}.deb')][0])")
+
+    curl -fLo /tmp/picoclaw.deb "${DEB_URL}"
+    dpkg -i /tmp/picoclaw.deb
+    rm -f /tmp/picoclaw.deb
+
+    # Initialize config
+    su - "$(logname 2>/dev/null || echo root)" -c "picoclaw onboard" || true
+
+    log "PicoClaw installed: $(picoclaw version 2>/dev/null | grep -oP 'v?\d+\.\d+\.\d+' | head -1 || echo 'ok')"
+    log "Configure: edit ~/.picoclaw/config.json with your API key"
+}
+
+setup_picoclaw_ha_skill() {
+    log "Installing PicoClaw Home Assistant skill..."
+    local USER_HOME
+    USER_HOME=$(eval echo "~$(logname 2>/dev/null || echo root)")
+    local SKILLS_DIR="${USER_HOME}/.picoclaw/workspace/skills/home-assistant"
+    mkdir -p "${SKILLS_DIR}"
+
+    cat > "${SKILLS_DIR}/SKILL.md" << 'HASKILL'
+---
+name: home-assistant
+description: Query and control Home Assistant smart home devices. Use when asking about temperature, humidity, sensor readings, or controlling lights/switches.
+---
+
+# Home Assistant
+
+Query and control Home Assistant on this device via REST API.
+
+## Configuration
+
+- HA URL: http://localhost:8123
+- Token: stored at ~/.picoclaw/workspace/ha_token
+
+## Quick Commands
+
+### Read all sensor data
+```bash
+HA_TOKEN=$(cat ~/.picoclaw/workspace/ha_token 2>/dev/null || cat /home/*/.picoclaw/workspace/ha_token 2>/dev/null)
+curl -s -H "Authorization: Bearer $HA_TOKEN" http://localhost:8123/api/states | python3 -c "
+import sys,json
+for s in json.load(sys.stdin):
+    eid = s['entity_id']
+    if 'sensor.' in eid or 'binary_sensor.' in eid:
+        unit = s.get('attributes',{}).get('unit_of_measurement','')
+        name = s.get('attributes',{}).get('friendly_name', eid)
+        print(f'{name}: {s[\"state\"]} {unit}')
+"
+```
+
+### Turn on/off a device
+```bash
+HA_TOKEN=$(cat ~/.picoclaw/workspace/ha_token)
+curl -s -X POST -H "Authorization: Bearer $HA_TOKEN" -H "Content-Type: application/json" \
+  http://localhost:8123/api/services/{domain}/{service} \
+  -d '{"entity_id": "{entity_id}"}'
+```
+
+### Enable ZHA pairing mode
+```bash
+HA_TOKEN=$(cat ~/.picoclaw/workspace/ha_token)
+curl -s -X POST -H "Authorization: Bearer $HA_TOKEN" -H "Content-Type: application/json" \
+  http://localhost:8123/api/services/zha/permit -d '{"duration": 120}'
+```
+HASKILL
+
+    log "PicoClaw HA skill installed"
+}
+
+main() {
+    log "=== Avaota A1 First Boot Setup (PicoClaw edition) ==="
+    log "Date: $(date)"
+
+    wait_for_network
+
+    setup_homeassistant
+    setup_zha_blz
+    setup_picoclaw
+    setup_picoclaw_ha_skill
+
+    log "=== First boot setup complete ==="
+    log "Home Assistant: http://<this-device-ip>:8123"
+    log "  -> Built-in ZHA is patched for BLZ; add ZHA integration in UI"
+    log "  -> BLZ dongles should auto-detect at 2000000 baud"
+    log "PicoClaw: edit ~/.picoclaw/config.json with API key, then: picoclaw agent -m 'hello'"
+}
+
+main "$@"
