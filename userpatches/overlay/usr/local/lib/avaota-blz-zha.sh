@@ -17,10 +17,10 @@ setup_zha_blz() {
 
     rm -rf "${ha_config}/custom_components/zha.disabled"
 
-    log "Installing zigpy-blz into Home Assistant container..."
+    log "Installing latest zigpy-blz into Home Assistant container..."
     docker exec homeassistant \
         python3 -m pip install --no-cache-dir --root-user-action=ignore --no-deps --upgrade \
-        "zigpy-blz>=0.1.0"
+        "zigpy-blz @ https://github.com/bouffalolab/zigpy-blz/archive/refs/heads/main.zip"
 
     log "Patching built-in ZHA for BLZ radio support..."
     docker exec -i homeassistant python3 - <<'PY'
@@ -28,7 +28,6 @@ from pathlib import Path
 
 import homeassistant.components.zha.radio_manager as radio_manager
 import zha.application.const as zha_const
-import zigpy_blz.zigbee.application as blz_application
 
 
 def patch_zha_radio_type() -> None:
@@ -88,28 +87,9 @@ def patch_homeassistant_zha_radio_manager() -> None:
 
     path.write_text(text)
 
-
-def patch_zigpy_blz_probe_configs() -> None:
-    path = Path(blz_application.__file__)
-    text = path.read_text()
-
-    if "_probe_configs = [" not in text:
-        text = text.replace("_probe_config_variants = [", "_probe_configs = [")
-
-    if "_probe_config_variants = _probe_configs" not in text:
-        text = text.replace(
-            "    _watchdog_period: int = 60",
-            "    _probe_config_variants = _probe_configs\n\n"
-            "    _watchdog_period: int = 60",
-        )
-
-    path.write_text(text)
-
-
 patch_zha_radio_type()
 patch_homeassistant_zha_radio_manager()
-patch_zigpy_blz_probe_configs()
-print("BLZ ZHA patch applied")
+print("BLZ ZHA registration applied")
 PY
 
     log "Restarting Home Assistant to load BLZ support..."
