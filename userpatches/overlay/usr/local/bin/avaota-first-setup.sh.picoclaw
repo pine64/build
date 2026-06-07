@@ -79,68 +79,10 @@ setup_picoclaw() {
     dpkg -i /tmp/picoclaw.deb
     rm -f /tmp/picoclaw.deb
 
-    # Initialize config
-    su - "$(logname 2>/dev/null || echo root)" -c "picoclaw onboard" || true
-
     log "PicoClaw installed: $(picoclaw version 2>/dev/null | grep -oP 'v?\d+\.\d+\.\d+' | head -1 || echo 'ok')"
-    log "Configure: edit ~/.picoclaw/config.json with your API key"
-}
-
-setup_picoclaw_ha_skill() {
-    log "Installing PicoClaw Home Assistant skill..."
-    local USER_HOME
-    USER_HOME=$(eval echo "~$(logname 2>/dev/null || echo root)")
-    local SKILLS_DIR="${USER_HOME}/.picoclaw/workspace/skills/home-assistant"
-    mkdir -p "${SKILLS_DIR}"
-
-    cat > "${SKILLS_DIR}/SKILL.md" << 'HASKILL'
----
-name: home-assistant
-description: Query and control Home Assistant smart home devices. Use when asking about temperature, humidity, sensor readings, or controlling lights/switches.
----
-
-# Home Assistant
-
-Query and control Home Assistant on this device via REST API.
-
-## Configuration
-
-- HA URL: http://localhost:8123
-- Token: stored at ~/.picoclaw/workspace/ha_token
-
-## Quick Commands
-
-### Read all sensor data
-```bash
-HA_TOKEN=$(cat ~/.picoclaw/workspace/ha_token 2>/dev/null || cat /home/*/.picoclaw/workspace/ha_token 2>/dev/null)
-curl -s -H "Authorization: Bearer $HA_TOKEN" http://localhost:8123/api/states | python3 -c "
-import sys,json
-for s in json.load(sys.stdin):
-    eid = s['entity_id']
-    if 'sensor.' in eid or 'binary_sensor.' in eid:
-        unit = s.get('attributes',{}).get('unit_of_measurement','')
-        name = s.get('attributes',{}).get('friendly_name', eid)
-        print(f'{name}: {s[\"state\"]} {unit}')
-"
-```
-
-### Turn on/off a device
-```bash
-HA_TOKEN=$(cat ~/.picoclaw/workspace/ha_token)
-curl -s -X POST -H "Authorization: Bearer $HA_TOKEN" -H "Content-Type: application/json" \
-  http://localhost:8123/api/services/{domain}/{service} \
-  -d '{"entity_id": "{entity_id}"}'
-```
-
-### Enable ZHA pairing mode
-```bash
-HA_TOKEN=$(cat ~/.picoclaw/workspace/ha_token)
-curl -s -X POST -H "Authorization: Bearer $HA_TOKEN" -H "Content-Type: application/json" \
-  http://localhost:8123/api/services/zha/permit -d '{"duration": 120}'
-```
-HASKILL
-
-    log "PicoClaw HA skill installed"
+    log "PicoClaw is installed system-wide"
+    log "Each user should run: picoclaw onboard"
+    log "Then add their own model/API key with: picoclaw model add -b <api-base> -k <api-key> -m <model> -n <name>"
 }
 
 main() {
@@ -152,13 +94,12 @@ main() {
     setup_homeassistant
     setup_zha_blz
     setup_picoclaw
-    setup_picoclaw_ha_skill
 
     log "=== First boot setup complete ==="
     log "Home Assistant: http://<this-device-ip>:8123"
     log "  -> Built-in ZHA is patched for BLZ; add ZHA integration in UI"
     log "  -> BLZ dongles should auto-detect at 2000000 baud"
-    log "PicoClaw: edit ~/.picoclaw/config.json with API key, then: picoclaw agent -m 'hello'"
+    log "PicoClaw: run 'picoclaw onboard', add a model/API key, then: picoclaw agent -m 'hello'"
 }
 
 main "$@"
