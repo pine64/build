@@ -168,7 +168,7 @@ function prepare_host_binfmt_qemu_cross() {
 	declare host_arch
 	host_arch="$(arch)"
 	declare -a wanted_arches=("arm" "aarch64" "x86_64" "riscv64" "loongarch64")
-	declare -A arch_aliases=(["aarch64"]="arm64" ["x86_64"]="amd64")
+	declare -A arch_aliases=(["arm"]="armhf" ["aarch64"]="arm64" ["x86_64"]="amd64")
 	display_alert "Preparing binfmts for arch" "binfmts: host '${host_arch}', wanted arches '${wanted_arches[*]}'" "debug"
 	declare wanted_arch arch_alias
 	for wanted_arch in "${wanted_arches[@]}"; do
@@ -187,6 +187,12 @@ function prepare_host_binfmt_qemu_cross() {
 				prepare_host_binfmt_qemu_cross_arm64_host_armhf_target
 			else
 				run_host_command_logged update-binfmts --enable "qemu-${wanted_arch}" "&>" "/dev/null" || display_alert "Failed to update binfmts" "update-binfmts --enable qemu-${wanted_arch}" "err" # log & continue on failure
+			fi
+
+			if [[ "${arch_alias}" == "${ARCH}" && ! -e "/proc/sys/fs/binfmt_misc/qemu-${wanted_arch}" && -f "/usr/lib/binfmt.d/qemu-${wanted_arch}.conf" ]]; then
+				display_alert "Registering binfmt from systemd config" "qemu-${wanted_arch}" "debug"
+				run_host_command_logged bash -c "cat '/usr/lib/binfmt.d/qemu-${wanted_arch}.conf' > /proc/sys/fs/binfmt_misc/register" || \
+					display_alert "Failed to register binfmt from systemd config" "qemu-${wanted_arch}" "err"
 			fi
 		fi
 	done
