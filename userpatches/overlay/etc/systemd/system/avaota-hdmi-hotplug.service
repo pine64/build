@@ -1,0 +1,11 @@
+[Unit]
+Description=Enable Avaota A1 HDMI output after hotplug
+After=display-manager.service lightdm.service
+Wants=display-manager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/avaota-hdmi-hotplug
+
+[Install]
+WantedBy=graphical.target

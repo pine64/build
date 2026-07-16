@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+LOG_TAG="avaota-hdmi-hotplug"
+CONNECTOR_GLOB="${CONNECTOR_GLOB:-/sys/class/drm/card*-HDMI-A-*}"
+DISPLAY="${DISPLAY:-:0}"
+XAUTHORITY="${XAUTHORITY:-/var/run/lightdm/root/:0}"
+RESTART_STAMP="${RESTART_STAMP:-/run/avaota-hdmi-hotplug-lightdm-restarted}"
+
+log() {
+    logger -t "${LOG_TAG}" "$*"
+    echo "[${LOG_TAG}] $*"
+}
+
+find_connected_connector() {
+    local connector
+    for connector in ${CONNECTOR_GLOB}; do
+        [ -e "${connector}/status" ] || continue
+        if [ "$(cat "${connector}/status" 2>/dev/null || true)" = "connected" ]; then
+            printf '%s\n' "${connector}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+x_output_for_connector() {
+    local base output
+    base="$(basename "$1")"
+    output="${base#card*-}"
+    output="${output/HDMI-A-/HDMI-}"
+    printf '%s\n' "${output}"
+}
+
+preferred_mode_for_connector() {
+    local connector="$1"
+    if grep -qx "1920x1080" "${connector}/modes" 2>/dev/null; then
+        printf '%s\n' "1920x1080"
+        return 0
+    fi
+    sed -n '1p' "${connector}/modes" 2>/dev/null || true
+}
+
+xrandr_query() {
+    DISPLAY="${DISPLAY}" XAUTHORITY="${XAUTHORITY}" xrandr --query 2>/dev/null
+}
+
+enable_x_output() {
+    local output="$1" mode="$2"
+
+    if [ -n "${mode}" ] && xrandr_query | grep -qE "^${output} connected .* ${mode}( |$)"; then
+        DISPLAY="${DISPLAY}" XAUTHORITY="${XAUTHORITY}" \
+            xrandr --output "${output}" --mode "${mode}" --primary
+    else
+        DISPLAY="${DISPLAY}" XAUTHORITY="${XAUTHORITY}" \
+            xrandr --output "${output}" --auto --primary
+    fi
+}
+
+main() {
+    local connector output mode query
+
+    if ! connector="$(find_connected_connector)"; then
+        rm -f "${RESTART_STAMP}"
+        log "no connected HDMI connector"
+        return 0
+    fi
+
+    output="$(x_output_for_connector "${connector}")"
+    mode="$(preferred_mode_for_connector "${connector}")"
+    log "kernel reports ${connector} connected; xrandr output=${output}; preferred_mode=${mode:-auto}"
+
+    if ! query="$(xrandr_query)"; then
+        log "xrandr is not ready for DISPLAY=${DISPLAY}"
+        return 0
+    fi
+
+    if grep -qE "^${output} connected" <<< "${query}"; then
+        enable_x_output "${output}" "${mode:-}"
+        log "enabled ${output} via xrandr"
+        return 0
+    fi
+
+    if grep -qE "^${output} disconnected" <<< "${query}"; then
+        if [ ! -e "${RESTART_STAMP}" ] && systemctl is-active --quiet lightdm.service; then
+            touch "${RESTART_STAMP}"
+            log "Xorg reports ${output} disconnected while kernel is connected; restarting lightdm"
+            systemctl restart lightdm.service
+            sleep 6
+            if query="$(xrandr_query)" && grep -qE "^${output} connected" <<< "${query}"; then
+                enable_x_output "${output}" "${mode:-}"
+                log "enabled ${output} after lightdm restart"
+            else
+                log "lightdm restart completed but ${output} is still not connected in xrandr"
+            fi
+        else
+            log "Xorg still reports ${output} disconnected; restart already attempted or lightdm inactive"
+        fi
+        return 0
+    fi
+
+    log "xrandr output ${output} not found"
+}
+
+main "$@"

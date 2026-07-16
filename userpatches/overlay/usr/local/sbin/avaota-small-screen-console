@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+LOG_TAG="avaota-small-screen-console"
+FRAMEBUFFER_DEVICE="${FRAMEBUFFER_DEVICE:-/dev/fb1}"
+FRAMEBUFFER_INDEX="${FRAMEBUFFER_INDEX:-1}"
+CONSOLE_NUMBER="${CONSOLE_NUMBER:-2}"
+WAIT_ATTEMPTS="${WAIT_ATTEMPTS:-30}"
+WAIT_INTERVAL="${WAIT_INTERVAL:-1}"
+CON2FBMAP_BIN="${CON2FBMAP_BIN:-con2fbmap}"
+SYSTEMCTL_BIN="${SYSTEMCTL_BIN:-systemctl}"
+FGCONSOLE_BIN="${FGCONSOLE_BIN:-fgconsole}"
+CHVT_BIN="${CHVT_BIN:-chvt}"
+SLEEP_BIN="${SLEEP_BIN:-sleep}"
+
+log() {
+	logger -t "${LOG_TAG}" "$*" 2>/dev/null || true
+	printf '[%s] %s\n' "${LOG_TAG}" "$*" >&2
+}
+
+wait_for_framebuffer() {
+	local attempt
+	for ((attempt = 1; attempt <= WAIT_ATTEMPTS; attempt++)); do
+		[[ -e "${FRAMEBUFFER_DEVICE}" ]] && return 0
+		if (( attempt < WAIT_ATTEMPTS )); then
+			"${SLEEP_BIN}" "${WAIT_INTERVAL}"
+		fi
+	done
+	return 1
+}
+
+main() {
+	local previous_vt
+
+	if ! wait_for_framebuffer; then
+		log "${FRAMEBUFFER_DEVICE} did not appear; leaving HDMI console unchanged"
+		return 0
+	fi
+
+	if ! command -v "${CON2FBMAP_BIN}" >/dev/null 2>&1; then
+		log "${CON2FBMAP_BIN} is unavailable; leaving HDMI console unchanged"
+		return 0
+	fi
+
+	if ! "${CON2FBMAP_BIN}" "${CONSOLE_NUMBER}" "${FRAMEBUFFER_INDEX}"; then
+		log "Could not map VT${CONSOLE_NUMBER} to framebuffer ${FRAMEBUFFER_INDEX}"
+		return 0
+	fi
+
+	if ! "${SYSTEMCTL_BIN}" start "getty@tty${CONSOLE_NUMBER}.service"; then
+		log "Could not start getty@tty${CONSOLE_NUMBER}.service"
+		return 0
+	fi
+
+	previous_vt="$("${FGCONSOLE_BIN}" 2>/dev/null || true)"
+	if [[ "${previous_vt}" =~ ^[0-9]+$ && "${previous_vt}" != "${CONSOLE_NUMBER}" ]]; then
+		if "${CHVT_BIN}" "${CONSOLE_NUMBER}"; then
+			"${SLEEP_BIN}" 1
+			"${CHVT_BIN}" "${previous_vt}" || true
+		fi
+	fi
+
+	log "VT${CONSOLE_NUMBER} is mapped to ${FRAMEBUFFER_DEVICE}"
+}
+
+main "$@"

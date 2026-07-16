@@ -7,11 +7,16 @@ INTRODUCED="2024"
 KERNEL_TARGET="legacy"
 BOOT_FDT_FILE="allwinner/sun55i-t527-avaota-a1.dtb"
 SRC_EXTLINUX="yes"
-SRC_CMDLINE="earlycon=uart8250,mmio32,0x02500000 clk_ignore_unused initcall_debug=0 console=ttyAS0,115200 loglevel=8 cma=64M init=/sbin/init"
+SRC_CMDLINE="earlycon=uart8250,mmio32,0x02500000 clk_ignore_unused initcall_debug=0 console=ttyAS0,115200 console=tty1 video=HDMI-A-1:1920x1080@60e plymouth.enable=0 vt.global_cursor_default=1 loglevel=8 cma=64M init=/sbin/init"
 BOOTFS_TYPE="fat"
 BOOTSIZE="256"
 SERIALCON="ttyAS0"
 declare -g SYTERKIT_BOARD_ID="avaota-a1" # This _only_ used for syterkit-allwinner extension
+
+function post_family_config__avaota_a1_console_cmdline() {
+	# common.conf is sourced after board configs, so override its splash arguments here.
+	declare -g MAIN_CMDLINE="rw no_console_suspend consoleblank=0 fsck.fix=yes fsck.repair=yes net.ifnames=0"
+}
 
 function post_family_tweaks__avaota-a1() {
 	display_alert "Applying boot blobs"
@@ -48,15 +53,28 @@ function post_family_tweaks__avaota-a1() {
 		    Identifier "sunxi-drm-card0"
 		    Driver "modesetting"
 		    Option "kmsdev" "/dev/dri/card0"
+		    Option "Monitor-HDMI-1" "Avaota HDMI"
 		    Option "AccelMethod" "none"
 		    Option "ShadowFB" "true"
 		    Option "PageFlip" "false"
 		    Option "SWcursor" "true"
 		EndSection
 
+		Section "Monitor"
+		    Identifier "Avaota HDMI"
+		    Option "Enable" "true"
+		    Option "Primary" "true"
+		    Option "PreferredMode" "1920x1080"
+		EndSection
+
 		Section "Screen"
 		    Identifier "Sunxi Screen"
 		    Device "sunxi-drm-card0"
+		    Monitor "Avaota HDMI"
+		    SubSection "Display"
+		        Depth 24
+		        Modes "1920x1080" "1280x720" "1024x768"
+		    EndSubSection
 		EndSection
 	EOF
 
@@ -107,15 +125,28 @@ function post_family_tweaks__avaota-a1() {
 		    Identifier "sunxi-drm-hdmi"
 		    Driver "modesetting"
 		    Option "kmsdev" "${kmsdev}"
+		    Option "Monitor-HDMI-1" "Avaota HDMI"
 		    Option "AccelMethod" "none"
 		    Option "ShadowFB" "true"
 		    Option "PageFlip" "false"
 		    Option "SWcursor" "true"
 		EndSection
 
+		Section "Monitor"
+		    Identifier "Avaota HDMI"
+		    Option "Enable" "true"
+		    Option "Primary" "true"
+		    Option "PreferredMode" "1920x1080"
+		EndSection
+
 		Section "Screen"
 		    Identifier "Sunxi Screen"
 		    Device "sunxi-drm-hdmi"
+		    Monitor "Avaota HDMI"
+		    SubSection "Display"
+		        Depth 24
+		        Modes "1920x1080" "1280x720" "1024x768"
+		    EndSubSection
 		EndSection
 		XORG
 

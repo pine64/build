@@ -1,0 +1,13 @@
+[Unit]
+Description=Avaota A1 Small-Screen Framebuffer Console
+After=systemd-modules-load.service getty@tty2.service
+Before=display-manager.service lightdm.service
+Wants=getty@tty2.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/avaota-small-screen-console
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

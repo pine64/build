@@ -4,7 +4,7 @@ ConditionPathExists=!/var/lib/avaota-first-setup-done
 
 [Timer]
 OnBootSec=2min
-OnUnitInactiveSec=5min
+OnUnitInactiveSec=2min
 AccuracySec=30s
 Persistent=true
 Unit=avaota-first-setup.service

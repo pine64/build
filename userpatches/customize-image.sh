@@ -64,7 +64,7 @@ InstallAvaotaA1Stack() {
 	apt-get install -y --no-install-recommends \
 		curl wget git ca-certificates gnupg \
 		build-essential python3 make g++ \
-		usbutils picocom
+		usbutils picocom x11-xserver-utils fbset
 
 	# -- Docker --
 	echo ">>> [avaota] Installing Docker..."
@@ -89,6 +89,23 @@ InstallAvaotaA1Stack() {
 	echo ">>> [avaota] Configuring USB serial module auto-load..."
 	cp /tmp/overlay/etc/modules-load.d/usb-serial-blz.conf /etc/modules-load.d/
 
+	# -- HDMI primary desktop and independent SPI framebuffer terminal --
+	echo ">>> [avaota] Installing display helpers..."
+	mkdir -p /usr/local/sbin /etc/udev/rules.d
+	cp /tmp/overlay/usr/local/sbin/avaota-hdmi-hotplug /usr/local/sbin/
+	cp /tmp/overlay/usr/local/sbin/avaota-firstlogin-console /usr/local/sbin/
+	cp /tmp/overlay/usr/local/sbin/avaota-small-screen-console /usr/local/sbin/
+	chmod 755 /usr/local/sbin/avaota-hdmi-hotplug
+	chmod 755 /usr/local/sbin/avaota-firstlogin-console
+	chmod 755 /usr/local/sbin/avaota-small-screen-console
+	cp /tmp/overlay/etc/systemd/system/avaota-hdmi-hotplug.service /etc/systemd/system/
+	cp /tmp/overlay/etc/systemd/system/avaota-firstlogin-console.service /etc/systemd/system/
+	cp /tmp/overlay/etc/systemd/system/avaota-small-screen-console.service /etc/systemd/system/
+	cp /tmp/overlay/etc/udev/rules.d/99-avaota-hdmi-hotplug.rules /etc/udev/rules.d/
+	systemctl enable avaota-hdmi-hotplug.service
+	systemctl enable avaota-firstlogin-console.service
+	systemctl enable avaota-small-screen-console.service
+
 	# -- First-boot setup service (pulls HA + selected assistant on first boot) --
 	echo ">>> [avaota] Installing first-boot setup service..."
 	mkdir -p /usr/local/lib
@@ -99,6 +116,15 @@ InstallAvaotaA1Stack() {
 	cp /tmp/overlay/etc/systemd/system/avaota-first-setup.service /etc/systemd/system/
 	cp /tmp/overlay/etc/systemd/system/avaota-first-setup.timer /etc/systemd/system/
 	systemctl enable avaota-first-setup.timer
+
+	# Keep Armbian first-login interactive, but skip the confusing shell picker.
+	echo ">>> [avaota] Presetting Armbian first-login shell to bash..."
+	touch /root/.not_logged_in_yet
+	if grep -q '^PRESET_USER_SHELL=' /root/.not_logged_in_yet; then
+		sed -i 's/^PRESET_USER_SHELL=.*/PRESET_USER_SHELL=bash/' /root/.not_logged_in_yet
+	else
+		echo "PRESET_USER_SHELL=bash" >> /root/.not_logged_in_yet
+	fi
 
 	# -- Clean up --
 	echo ">>> [avaota] Cleaning up..."

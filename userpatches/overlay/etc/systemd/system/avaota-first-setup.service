@@ -1,13 +1,12 @@
 [Unit]
-Description=Avaota A1 First Boot Setup (Home Assistant + OpenClaw)
-After=network-online.target docker.service
-Wants=network-online.target docker.service
+Description=Avaota A1 First Boot Setup (Home Assistant + Assistant Stack)
+After=docker.service
+Wants=docker.service
 ConditionPathExists=!/var/lib/avaota-first-setup-done
 
 [Service]
 Type=oneshot
 ExecStart=/usr/local/bin/avaota-first-setup.sh
-ExecStartPost=/usr/bin/touch /var/lib/avaota-first-setup-done
-TimeoutStartSec=900
-StandardOutput=journal+console
-StandardError=journal+console
+TimeoutStartSec=1h
+StandardOutput=journal
+StandardError=journal
