@@ -53,6 +53,8 @@ function artifact_armbian-bsp-cli_prepare_version() {
 		"has_extlinux: ${bootscript_info[has_extlinux]}"
 		"UBOOT_FW_ENV: ${UBOOT_FW_ENV}"                               # not included in bootscript
 		"KEEP_ORIGINAL_OS_RELEASE: ${KEEP_ORIGINAL_OS_RELEASE:-"no"}" # /etc/os-release
+		"BUILD_REPOSITORY_URL: ${BUILD_REPOSITORY_URL}"               # /etc/armbian-release
+		"BUILD_REPOSITORY_COMMIT: ${BUILD_REPOSITORY_COMMIT}"         # /etc/armbian-release
 		"BOARDFAMILY: ${BOARDFAMILY}"                                 # /etc/armbian-release
 		"LINUXFAMILY: ${LINUXFAMILY}"                                 # /etc/armbian-release
 		"IMAGE_TYPE: ${IMAGE_TYPE}"                                   # /etc/armbian-release

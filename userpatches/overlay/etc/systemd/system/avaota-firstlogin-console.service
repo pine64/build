@@ -1,0 +1,13 @@
+[Unit]
+Description=Keep Avaota first login on HDMI tty1
+After=local-fs.target systemd-vconsole-setup.service getty@tty1.service
+Before=display-manager.service lightdm.service graphical.target
+Wants=getty@tty1.service
+ConditionPathExists=/root/.not_logged_in_yet
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/avaota-firstlogin-console
+
+[Install]
+WantedBy=multi-user.target graphical.target

@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+LOG_TAG="avaota-firstlogin-console"
+
+log() {
+    logger -t "${LOG_TAG}" "$*"
+    echo "[${LOG_TAG}] $*"
+}
+
+main() {
+    if [ ! -e /root/.not_logged_in_yet ]; then
+        log "first-login marker is absent; leaving display state unchanged"
+        return 0
+    fi
+
+    plymouth quit || true
+    systemctl --no-block stop display-manager.service lightdm.service || true
+    systemctl --no-block restart getty@tty1.service || true
+
+    if command -v chvt >/dev/null 2>&1; then
+        chvt 1 || true
+    fi
+
+    log "selected tty1 for first-login console"
+}
+
+main "$@"

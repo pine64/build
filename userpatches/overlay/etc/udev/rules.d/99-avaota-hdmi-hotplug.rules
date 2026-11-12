@@ -1,0 +1,1 @@
+ACTION=="change", SUBSYSTEM=="drm", KERNEL=="card*-HDMI-A-*", TAG+="systemd", ENV{SYSTEMD_WANTS}+="avaota-hdmi-hotplug.service"
