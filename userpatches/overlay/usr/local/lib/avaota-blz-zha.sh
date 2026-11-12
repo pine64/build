@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# zigpy-blz is pinned to a commit that passed the host and Avaota board tests.
+# Change all three together, and only after re-running both.
+ZIGPY_BLZ_REPO="fangzheli/zigpy-blz"
+ZIGPY_BLZ_COMMIT="f8a884da600ab3e7b903de5e202a27c237aba5e5"
+ZIGPY_BLZ_VERSION="0.1.1.dev5+gf8a884d"
+
 setup_zha_blz() {
     log "Installing BLZ support for Home Assistant ZHA..."
     local ha_config="/opt/homeassistant/config"
@@ -17,10 +23,18 @@ setup_zha_blz() {
 
     rm -rf "${ha_config}/custom_components/zha.disabled" || return $?
 
-    log "Installing latest zigpy-blz into Home Assistant container..."
-    docker exec homeassistant \
+    log "Installing zigpy-blz ${ZIGPY_BLZ_VERSION} (${ZIGPY_BLZ_REPO}@${ZIGPY_BLZ_COMMIT:0:7}) into Home Assistant container..."
+    # The archive has no git metadata, so give setuptools_scm the version explicitly
+    docker exec -e SETUPTOOLS_SCM_PRETEND_VERSION="${ZIGPY_BLZ_VERSION}" homeassistant \
         python3 -m pip install --no-cache-dir --root-user-action=ignore --no-deps --upgrade \
-        "zigpy-blz @ https://github.com/bouffalolab/zigpy-blz/archive/refs/heads/main.zip" || return $?
+        "zigpy-blz @ https://github.com/${ZIGPY_BLZ_REPO}/archive/${ZIGPY_BLZ_COMMIT}.zip" || return $?
+
+    local installed_version
+    installed_version="$(docker exec homeassistant python3 -c 'import importlib.metadata as m; print(m.version("zigpy-blz"))')" || return $?
+    if [ "${installed_version}" != "${ZIGPY_BLZ_VERSION}" ]; then
+        log "zigpy-blz version is ${installed_version}, expected ${ZIGPY_BLZ_VERSION}"
+        return 1
+    fi
 
     log "Verifying zigpy-blz probe config..."
     docker exec -i homeassistant python3 - <<'PY' || return $?
