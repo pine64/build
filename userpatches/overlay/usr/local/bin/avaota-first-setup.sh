@@ -1,13 +1,15 @@
 #!/bin/bash
 #
 # Avaota A1 First Boot Setup
-# Runs once on first boot to pull latest Home Assistant and OpenClaw.
+# Runs once on first boot to pull the latest Home Assistant and the pinned OpenClaw release.
 # Managed by avaota-first-setup.service (ConditionPathExists guard).
 #
 
 set -euo pipefail
 
 LOG_TAG="avaota-first-setup"
+# OpenClaw release installed on first boot; pinned so a new upstream release cannot break first setup.
+OPENCLAW_VERSION="${OPENCLAW_VERSION:-2026.11.4}"
 SETUP_DONE_MARKER="${SETUP_DONE_MARKER:-/var/lib/avaota-first-setup-done}"
 SYSTEMCTL_BIN="${SYSTEMCTL_BIN:-systemctl}"
 SETUP_TIMER_UNIT="${SETUP_TIMER_UNIT:-avaota-first-setup.timer}"
@@ -73,8 +75,8 @@ setup_homeassistant() {
 }
 
 setup_openclaw() {
-    log "Installing latest OpenClaw..."
-    npm install -g openclaw@latest || return $?
+    log "Installing OpenClaw ${OPENCLAW_VERSION}..."
+    npm install -g "openclaw@${OPENCLAW_VERSION}" || return $?
 
     log "OpenClaw installed: $(openclaw --version 2>/dev/null || echo 'version check skipped')"
     log "Run 'openclaw onboard --install-daemon' to complete setup"
