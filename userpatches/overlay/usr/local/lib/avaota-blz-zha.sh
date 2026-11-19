@@ -2,9 +2,9 @@
 
 # zigpy-blz is pinned to a commit that passed the host and Avaota board tests.
 # Change all three together, and only after re-running both.
-ZIGPY_BLZ_REPO="fangzheli/zigpy-blz"
-ZIGPY_BLZ_COMMIT="f8a884da600ab3e7b903de5e202a27c237aba5e5"
-ZIGPY_BLZ_VERSION="0.1.1.dev5+gf8a884d"
+ZIGPY_BLZ_REPO="bouffalolab/zigpy-blz"
+ZIGPY_BLZ_COMMIT="e3baf55b9e4734e735cd6d9994dc7e9c3c017102"
+ZIGPY_BLZ_VERSION="0.1.1.dev8+ge3baf55"
 
 setup_zha_blz() {
     log "Installing BLZ support for Home Assistant ZHA..."
