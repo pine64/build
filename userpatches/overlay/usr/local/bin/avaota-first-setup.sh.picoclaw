@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Avaota A1 First Boot Setup
-# Runs once on first boot to pull latest Home Assistant and PicoClaw.
+# Runs once on first boot to pull latest Home Assistant and a pinned PicoClaw release.
 # Managed by avaota-first-setup.service (ConditionPathExists guard).
 #
 
@@ -11,6 +11,7 @@ LOG_TAG="avaota-first-setup"
 SETUP_DONE_MARKER="${SETUP_DONE_MARKER:-/var/lib/avaota-first-setup-done}"
 SYSTEMCTL_BIN="${SYSTEMCTL_BIN:-systemctl}"
 SETUP_TIMER_UNIT="${SETUP_TIMER_UNIT:-avaota-first-setup.timer}"
+PICOCLAW_VERSION="${PICOCLAW_VERSION:-v0.3.1}"
 
 log() {
     echo "[${LOG_TAG}] $*"
@@ -73,7 +74,7 @@ setup_homeassistant() {
 }
 
 setup_picoclaw() {
-    log "Installing latest PicoClaw..."
+    log "Installing PicoClaw ${PICOCLAW_VERSION}..."
     local ARCH
     ARCH=$(dpkg --print-architecture) || return $?
     case "${ARCH}" in
@@ -82,9 +83,10 @@ setup_picoclaw() {
         amd64)         ARCH="x86_64" ;;
     esac
 
-    local DEB_URL
-    DEB_URL=$(curl -sf "https://api.github.com/repos/sipeed/picoclaw/releases/latest" \
-        | python3 -c "import sys,json; assets=json.load(sys.stdin)['assets']; print([a['browser_download_url'] for a in assets if a['name'].endswith('${ARCH}.deb')][0])") || return $?
+    local DEB_URL="https://github.com/sipeed/picoclaw/releases/download/${PICOCLAW_VERSION}/picoclaw_${ARCH}.deb"
+    if [ "${PICOCLAW_VERSION}" = latest ]; then
+        DEB_URL="https://github.com/sipeed/picoclaw/releases/latest/download/picoclaw_${ARCH}.deb"
+    fi
 
     curl -fLo /tmp/picoclaw.deb "${DEB_URL}" || return $?
     dpkg -i /tmp/picoclaw.deb || return $?

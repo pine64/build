@@ -6,6 +6,8 @@ ConditionPathExists=!/var/lib/avaota-first-setup-done
 
 [Service]
 Type=oneshot
+# Optional overrides, such as OPENCLAW_VERSION or PICOCLAW_VERSION ("latest" tests the newest upstream release).
+EnvironmentFile=-/etc/default/avaota-first-setup
 ExecStart=/usr/local/bin/avaota-first-setup.sh
 TimeoutStartSec=1h
 StandardOutput=journal

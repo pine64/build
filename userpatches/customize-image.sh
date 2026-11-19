@@ -64,7 +64,7 @@ InstallAvaotaA1Stack() {
 	apt-get install -y --no-install-recommends \
 		curl wget git ca-certificates gnupg \
 		build-essential python3 make g++ \
-		usbutils picocom x11-xserver-utils fbset
+		usbutils picocom x11-xserver-utils fbset python3-pil
 
 	# -- Docker --
 	echo ">>> [avaota] Installing Docker..."
@@ -94,17 +94,17 @@ InstallAvaotaA1Stack() {
 	mkdir -p /usr/local/sbin /etc/udev/rules.d
 	cp /tmp/overlay/usr/local/sbin/avaota-hdmi-hotplug /usr/local/sbin/
 	cp /tmp/overlay/usr/local/sbin/avaota-firstlogin-console /usr/local/sbin/
-	cp /tmp/overlay/usr/local/sbin/avaota-small-screen-console /usr/local/sbin/
+	cp /tmp/overlay/usr/local/sbin/avaota-small-screen-status /usr/local/sbin/
 	chmod 755 /usr/local/sbin/avaota-hdmi-hotplug
 	chmod 755 /usr/local/sbin/avaota-firstlogin-console
-	chmod 755 /usr/local/sbin/avaota-small-screen-console
+	chmod 755 /usr/local/sbin/avaota-small-screen-status
 	cp /tmp/overlay/etc/systemd/system/avaota-hdmi-hotplug.service /etc/systemd/system/
 	cp /tmp/overlay/etc/systemd/system/avaota-firstlogin-console.service /etc/systemd/system/
-	cp /tmp/overlay/etc/systemd/system/avaota-small-screen-console.service /etc/systemd/system/
+	cp /tmp/overlay/etc/systemd/system/avaota-small-screen-status.service /etc/systemd/system/
 	cp /tmp/overlay/etc/udev/rules.d/99-avaota-hdmi-hotplug.rules /etc/udev/rules.d/
 	systemctl enable avaota-hdmi-hotplug.service
 	systemctl enable avaota-firstlogin-console.service
-	systemctl enable avaota-small-screen-console.service
+	systemctl enable avaota-small-screen-status.service
 
 	# -- First-boot setup service (pulls HA + selected assistant on first boot) --
 	echo ">>> [avaota] Installing first-boot setup service..."

@@ -9,7 +9,7 @@ set -euo pipefail
 
 LOG_TAG="avaota-first-setup"
 # OpenClaw release installed on first boot; pinned so a new upstream release cannot break first setup.
-OPENCLAW_VERSION="${OPENCLAW_VERSION:-2026.11.4}"
+OPENCLAW_VERSION="${OPENCLAW_VERSION:-2026.10.33}"
 SETUP_DONE_MARKER="${SETUP_DONE_MARKER:-/var/lib/avaota-first-setup-done}"
 SYSTEMCTL_BIN="${SYSTEMCTL_BIN:-systemctl}"
 SETUP_TIMER_UNIT="${SETUP_TIMER_UNIT:-avaota-first-setup.timer}"

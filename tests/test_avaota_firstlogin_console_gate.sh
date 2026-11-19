@@ -45,6 +45,7 @@ grep -q 'ConditionPathExists=/root/.not_logged_in_yet' "${service}"
 grep -q 'Before=.*display-manager.service' "${service}"
 grep -q 'Before=.*lightdm.service' "${service}"
 grep -q 'Wants=getty@tty1.service' "${service}"
+if grep -q '^After=.*getty@' "${service}"; then echo "firstlogin console must not wait for a getty (boot deadlock)" >&2; exit 1; fi
 grep -q 'ExecStart=/usr/local/sbin/avaota-firstlogin-console' "${service}"
 grep -q 'WantedBy=multi-user.target' "${service}"
 grep -q 'WantedBy=.*graphical.target' "${service}"

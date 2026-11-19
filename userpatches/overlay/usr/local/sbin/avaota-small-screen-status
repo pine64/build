@@ -1,0 +1,137 @@
+#!/usr/bin/env python3
+"""Draw a status page on the Avaota A1 small LCD (ST7789V, /dev/fb1) every few seconds.
+
+The page shows the host name, the IP addresses, whether Home Assistant answers, whether a Zigbee dongle is
+plugged in, and the time. It writes the framebuffer directly and never switches virtual terminals, so the HDMI
+desktop is not disturbed.
+
+Environment: FRAMEBUFFER_DEVICE (default /dev/fb1), INTERVAL seconds (default 10), ONCE=1 to draw a single frame.
+"""
+import os
+import socket
+import subprocess
+import sys
+import time
+import urllib.request
+
+from PIL import Image, ImageDraw, ImageFont
+
+FB = os.environ.get("FRAMEBUFFER_DEVICE", "/dev/fb1")
+INTERVAL = float(os.environ.get("INTERVAL", "10"))
+FONT_DIR = "/usr/share/fonts/truetype/dejavu"
+GREEN, RED, GREY, WHITE = (80, 220, 120), (240, 90, 80), (150, 150, 150), (255, 255, 255)
+
+
+def sysfs(path, default=""):
+    try:
+        with open(path) as f:
+            return f.read().strip()
+    except OSError:
+        return default
+
+
+def fb_geometry(fb):
+    name = os.path.basename(fb)
+    w, h = (int(v) for v in sysfs(f"/sys/class/graphics/{name}/virtual_size", "240,135").split(","))
+    bpp = int(sysfs(f"/sys/class/graphics/{name}/bits_per_pixel", "16"))
+    return w, h, bpp
+
+
+def unblank(fb):
+    try:
+        with open(f"/sys/class/graphics/{os.path.basename(fb)}/blank", "w") as f:
+            f.write("0")
+    except OSError:
+        pass
+
+
+def ip_addresses():
+    try:
+        out = subprocess.run(["ip", "-4", "-o", "addr", "show", "scope", "global"],
+                             capture_output=True, text=True, timeout=5).stdout
+    except (OSError, subprocess.SubprocessError):
+        return []
+    result = []
+    for line in out.splitlines():
+        parts = line.split()
+        if len(parts) >= 4 and not parts[1].startswith(("docker", "br-", "veth")):
+            result.append((parts[1], parts[3].split("/")[0]))
+    return result
+
+
+def home_assistant_up():
+    try:
+        urllib.request.urlopen("http://127.0.0.1:8123/manifest.json", timeout=3)
+        return True
+    except Exception:
+        return False
+
+
+def zigbee_dongle():
+    ports = sorted(p for p in os.listdir("/dev") if p.startswith(("ttyUSB", "ttyACM")))
+    return ports[0] if ports else ""
+
+
+def font(size, bold=False):
+    name = "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf"
+    try:
+        return ImageFont.truetype(os.path.join(FONT_DIR, name), size)
+    except OSError:
+        return ImageFont.load_default()
+
+
+def render(w, h):
+    img = Image.new("RGB", (w, h), (0, 0, 0))
+    d = ImageDraw.Draw(img)
+    big, small = font(18, bold=True), font(14)
+    y = 4
+    d.text((6, y), socket.gethostname(), font=big, fill=WHITE)
+    d.text((w - 6, y + 3), time.strftime("%H:%M"), font=small, fill=GREY, anchor="ra")
+    y += 26
+    addrs = ip_addresses()
+    if not addrs:
+        d.text((6, y), "No network", font=small, fill=RED)
+        y += 20
+    for dev, ip in addrs[:2]:
+        d.text((6, y), ip, font=small, fill=WHITE)
+        d.text((w - 6, y), dev, font=small, fill=GREY, anchor="ra")
+        y += 20
+    ha = home_assistant_up()
+    d.text((6, y), "Home Assistant", font=small, fill=WHITE)
+    d.text((w - 6, y), ":8123 up" if ha else "starting", font=small, fill=GREEN if ha else GREY, anchor="ra")
+    y += 20
+    port = zigbee_dongle()
+    d.text((6, y), "Zigbee dongle", font=small, fill=WHITE)
+    d.text((w - 6, y), port if port else "none", font=small, fill=GREEN if port else GREY, anchor="ra")
+    return img
+
+
+def to_rgb565(img):
+    out = bytearray(img.width * img.height * 2)
+    i = 0
+    for r, g, b in img.getdata():
+        v = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
+        out[i] = v & 0xFF
+        out[i + 1] = v >> 8
+        i += 2
+    return bytes(out)
+
+
+def main():
+    while not os.path.exists(FB):
+        time.sleep(2)
+    w, h, bpp = fb_geometry(FB)
+    if bpp != 16:
+        sys.exit(f"{FB}: {bpp} bits per pixel is not supported")
+    unblank(FB)
+    while True:
+        frame = to_rgb565(render(w, h))
+        with open(FB, "wb") as f:
+            f.write(frame)
+        if os.environ.get("ONCE") == "1":
+            return
+        time.sleep(INTERVAL)
+
+
+if __name__ == "__main__":
+    main()
