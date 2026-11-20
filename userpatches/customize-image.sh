@@ -106,6 +106,15 @@ InstallAvaotaA1Stack() {
 	systemctl enable avaota-firstlogin-console.service
 	systemctl enable avaota-small-screen-status.service
 
+	# Armbian first login links display-manager.service to lightdm and starts lightdm without a daemon-reload.
+	# The next daemon-reload (first setup installs packages) then merges the new alias, systemd loses the running
+	# lightdm (unit "inactive", process alive) and any later start job hangs. Reload right after the link.
+	FIRSTLOGIN=/usr/lib/armbian/armbian-firstlogin
+	DM_LINK='ln -sf /lib/systemd/system/lightdm.service /etc/systemd/system/display-manager.service'
+	grep -qF "${DM_LINK}" "${FIRSTLOGIN}" || { echo "customize-image: lightdm link not found in ${FIRSTLOGIN}" >&2; exit 1; }
+	sed -i "\\|${DM_LINK}|a\\		systemctl daemon-reload  # avaota: register the alias before starting lightdm" "${FIRSTLOGIN}"
+	grep -q "avaota: register the alias" "${FIRSTLOGIN}" || { echo "customize-image: firstlogin patch failed" >&2; exit 1; }
+
 	# -- First-boot setup service (pulls HA + selected assistant on first boot) --
 	echo ">>> [avaota] Installing first-boot setup service..."
 	mkdir -p /usr/local/lib
