@@ -1,6 +1,6 @@
 [Unit]
-Description=Avaota A1 small-screen status page
-# Draws /dev/fb1 directly and never switches virtual terminals, so it has no ordering against the display manager.
+Description=Avaota A1 small LCD: VT2 console and status page
+# No ordering against the display manager: VT switches wait until the boot has finished (see the script).
 After=systemd-modules-load.service
 
 [Service]

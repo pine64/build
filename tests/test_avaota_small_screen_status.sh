@@ -14,9 +14,11 @@ grep -q 'python3-pil' "${customize}"
 grep -q '/usr/local/sbin/avaota-small-screen-status' "${customize}"
 grep -q 'systemctl enable avaota-small-screen-status.service' "${customize}"
 
-# The page writes the framebuffer itself: no VT switching and no ordering against the display manager, both of
-# which broke the boot or the HDMI desktop before.
-if grep -Eq 'chvt|con2fbmap' "${helper}"; then echo "status page must not switch VTs" >&2; exit 1; fi
+# VT2 is the LCD console. VT switches must wait for the end of the boot (a switch while Xorg starts left HDMI without
+# a signal), and the unit must not be ordered against the display manager or a getty (that deadlocked the boot).
+grep -q 'con2fbmap' "${helper}"
+grep -q 'def boot_finished' "${helper}"
+grep -q 'if boot_finished():' "${helper}"
 if grep -Eq '^(Before|After)=.*(display-manager|lightdm|getty)' "${service}"; then
 	echo "status page must not be ordered against the display manager or a getty" >&2; exit 1
 fi
