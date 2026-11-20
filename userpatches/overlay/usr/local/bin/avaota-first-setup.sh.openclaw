@@ -55,6 +55,8 @@ setup_homeassistant() {
         log "Home Assistant container already exists"
     else
         log "Creating Home Assistant container..."
+        # --privileged alone copies /dev once at container start: no udev links (/dev/serial/by-id, by-path) and
+        # no dongle plugged in later. Binding the host /dev gives ZHA stable port names and USB hotplug.
         docker create \
             --name homeassistant \
             --restart unless-stopped \
@@ -63,6 +65,7 @@ setup_homeassistant() {
             -e TZ="$(cat /etc/timezone 2>/dev/null || echo UTC)" \
             -v /opt/homeassistant/config:/config \
             -v /run/dbus:/run/dbus:ro \
+            -v /dev:/dev \
             ghcr.io/home-assistant/home-assistant:stable || return $?
     fi
 
